@@ -27,8 +27,8 @@ use an async backend, eg. [aiohttp](https://github.com/aio-libs/aiohttp) or [htt
 ```
 
 ```python
- # use aredis as backend
- $pip install aiohttp
+ # use httpx as backend
+ $pip install httpx
 ```  
 or use a traditional sync backends [requests](https://github.com/psf/requests)
 
@@ -65,7 +65,7 @@ from typing import  List
 from omi_async_http_client import RequestModel
 
 
-@RequestModel(api_name="/staff/{id}", api_prefix="", api_sufix="")
+@RequestModel(api_name="/staff/{id}", api_prefix="", api_suffix="")
 class Staff(BaseModel):
     id:int
     name:str = ""
@@ -78,7 +78,7 @@ class PagedStaff(BaseModel):
     limit:int
     staffs:List[Staff]
 ```
-4.Test HTTP Client if is work, and enjoy omi_cache_manager.
+4.Test HTTP Client if is work, and enjoy omi_async_http_client.
 ```python
 client = APIClient(Staff) # user Staff to create a Apiclient
 # to retrieve some datas from a Restful API
@@ -99,12 +99,12 @@ response = await client.retrieve(
 
 5.We implemented a demo api provider use [FastAPI](https://github.com/tiangolo/fastapi) to show How to use this library. and testing is included.
 
-@See [mock_fastapi.py](https://github.com/limccn/omi_cache_manager/blob/master/mock_fastapi.py) for detail
+@See [mock_fastapi.py](https://github.com/limccn/omi_async_http_client/blob/master/mock_fastapi.py) for detail
 
 
 ### License
 
-##### omi_cache_manager is released under the Apache License 2.0.
+##### omi_async_http_client is released under the Apache License 2.0.
 
     Copyright 2020 limc.cn All rights reserved.
     

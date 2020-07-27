@@ -1,7 +1,24 @@
-# coding=utf-8
+"""
+Copyright 2020 limc.cn All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+"""
+
 import logging
 import random
 import string
+from abc import ABCMeta, abstractmethod
 from typing import Any, Dict, Optional, Type, TypeVar, Generic, Union
 from urllib.parse import urlencode
 
@@ -21,8 +38,69 @@ class ClientBackendResponse(BaseModel):
     response: Dict
 
 
+class AsyncHTTPClientContext:
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def create(self):
+        """
+        Proxy function for internal cache object.
+        @See CacheContext.create
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def destroy(self):
+        """
+        Proxy function for internal cache object.
+        @See CacheContext.destroy
+        """
+        raise NotImplementedError
+
+
+class AsyncHttpClientSession(AsyncHTTPClientContext):
+    __metaclass__ = ABCMeta
+
+    def __init__(self):
+        self._client_or_session = None
+
+    def __enter__(self):
+        if not self._client_or_session:
+            self.create()
+        return self._client_or_session
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return self.destroy()
+
+    async def __aenter__(self):
+        if not self._client_or_session:
+            await self.create()
+        return self._client_or_session
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return await self.destroy()
+
+    @abstractmethod
+    def create(self):
+        """
+        Proxy function for internal cache object.
+        @See CacheContext.create
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def destroy(self):
+        """
+        Proxy function for internal cache object.
+        @See CacheContext.destroy
+        """
+        raise NotImplementedError
+
+
 class AsyncHTTPClientBackend:
-    async def send(self, url, data, header, auth, timeout) -> Any:
+    __metaclass__ = ABCMeta
+
+    def send(self, url, data, header, auth, timeout) -> Any:
         """
         AsyncHTTPClientBackend执行DELETE操作，使用异步方式实现，返回ClientBackendResponse或 Dict
         SEND请求不要求服务器完成响应即可结束请求，即请求发送完成后直接结束操作，不用等待服务器Response。
@@ -39,7 +117,7 @@ class AsyncHTTPClientBackend:
         """
         raise NotImplementedError
 
-    async def head(self, url, header, auth, timeout) -> Any:
+    def head(self, url, header, auth, timeout) -> Any:
         """
         AsyncHTTPClientBackend执行HEAD操作，使用异步方式实现，返回ClientBackendResponse或 Dict
         HEAD请求不要求服务器完成响应即可结束请求，即请求获得Response的Header以后完成本次操作，不用等待服务器Response
@@ -54,7 +132,7 @@ class AsyncHTTPClientBackend:
         """
         raise NotImplementedError
 
-    async def get(
+    def get(
             self, url, data, header, auth, timeout
     ) -> Union[ClientBackendResponse, Dict]:
         """
@@ -69,7 +147,7 @@ class AsyncHTTPClientBackend:
         """
         raise NotImplementedError
 
-    async def put(
+    def put(
             self, url, data, header, auth, timeout
     ) -> Union[ClientBackendResponse, Dict]:
         """
@@ -84,7 +162,7 @@ class AsyncHTTPClientBackend:
         """
         raise NotImplementedError
 
-    async def post(
+    def post(
             self, url, data, header, auth, timeout
     ) -> Union[ClientBackendResponse, Dict]:
         """
@@ -99,7 +177,7 @@ class AsyncHTTPClientBackend:
         """
         raise NotImplementedError
 
-    async def delete(
+    def delete(
             self, url, data, header, auth, timeout
     ) -> Union[ClientBackendResponse, Dict]:
         """
