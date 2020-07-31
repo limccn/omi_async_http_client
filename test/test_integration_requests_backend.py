@@ -16,6 +16,7 @@ limitations under the License.
 """
 
 import sys
+import os
 from typing import Optional
 
 import pytest
@@ -27,27 +28,40 @@ from omi_async_http_client.async_http_client import APIClient
 from omi_async_http_client._model import RequestModel
 from omi_async_http_client._exceptions import HTTPException
 from omi_async_http_client._status_code import status_codes
-from omi_async_http_client.aiohttp_backend import AioHttpClientBackend
+
+from omi_async_http_client.requests_backend import RequestsClientBackend
+
+# =======================================
+# install nest_asyncio for unit test when
+# RuntimeError: This event loop is already running
+# pip install nest_asyncio
+# import nest_asyncio
+# nest_asyncio.apply()
+# =======================================
+
 
 @RequestModel(api_name="/resources", api_prefix="/mock", api_suffix="")
 class Resource(BaseModel):
     name: Optional[str]
     description: Optional[str]
 
-
 @RequestModel(api_name="/resources/{id}", api_prefix="/mock", api_suffix="")
 class ResourceID(Resource):
     id: Optional[str]
 
-
 httpclient = APIClient(model=Resource,
-                       http_backend="omi_async_http_client.aiohttp_backend.AioHttpClientBackend",
-                       resource_endpoint="http://localhost:8003")
+            app=None,
+            http_backend="omi_async_http_client.requests_backend.RequestsClientBackend",
+            client_id="client_id",
+            client_secret="client_secret",
+            resource_endpoint="http://localhost:8003") 
 
 httpclientid = APIClient(model=ResourceID,
-                         http_backend="omi_async_http_client.aiohttp_backend.AioHttpClientBackend",
-                         resource_endpoint="http://localhost:8003")
-
+            app=None,
+            http_backend="omi_async_http_client.requests_backend.RequestsClientBackend",
+            client_id="client_id",
+            client_secret="client_secret",
+            resource_endpoint="http://localhost:8003") 
 
 @pytest.fixture(scope='function')
 def setup_function(request):
@@ -67,66 +81,8 @@ def setup_module(request):
     print('setup_module called.')
 
 
-def test_builder(setup_module):
-    try:
-        client_for_test = APIClient(model=Resource,
-                                    http_backend="SomeHttpClientBackend",
-                                    resource_endpoint="http://localhost:8003")
-    except ValueError as err:
-        assert str(err) == 'Cannot resolve http_backend type SomeHttpClientBackend'
-
-    try:
-        client_for_test = APIClient(model=Resource,
-                                    http_backend="SomeHttpClientBackend")
-    except AssertionError as err:
-        assert str(err) == 'resource_endpoint can not be empty'
-
-    client_for_test = APIClient(model=Resource,
-                                http_backend="omi_async_http_client.aiohttp_backend.AioHttpClientBackend",
-                                resource_endpoint="http://localhost:8003/")  # end with slash
-    assert isinstance(client_for_test.http_backend, AioHttpClientBackend)
-
-    client_for_test = APIClient(model=Resource,
-                                http_backend=AioHttpClientBackend(),
-                                resource_endpoint="http://localhost:8003")
-    assert isinstance(client_for_test.http_backend, AioHttpClientBackend)
-
-
-def test_enum(setup_module):
-    assert status_codes.is_client_error(404)
-    assert status_codes.is_client_error(500) is False
-    assert status_codes.is_server_error(501)
-    assert status_codes.is_server_error(404) is False
-    assert status_codes.is_redirect(301)
-    assert status_codes.is_redirect(200) is False
-    assert status_codes.is_error(500)
-    assert status_codes.is_error(200) is False
-
-    assert status_codes.get_reason_phrase(800) == ""
-    assert status_codes.get_reason_phrase(200) == "OK"
-
-    assert str(status_codes.OK) == "200"
-
-
-def test_exception(setup_module):
-    try:
-        raise HTTPException(status_code=status_codes.OK, trace_code=111)
-    except HTTPException as e:
-        assert e.status_code == status_codes.OK
-        assert e.trace_code == 111
-        assert repr(e) == "HTTPException(status_code=<StatuCode.OK: 200>,trace_code=111,detail='OK')"
-
-    try:
-        raise HTTPException(status_code=status_codes.OK, trace_code=111, detail="something detail")
-    except HTTPException as e:
-        assert e.status_code == status_codes.OK
-        assert e.trace_code == 111
-        assert e.detail == "something detail"
-        assert repr(e) == "HTTPException(status_code=<StatuCode.OK: 200>,trace_code=111,detail='something detail')"
-
-
 @pytest.mark.asyncio
-async def test_get_all():
+async def test_get_all(event_loop):
     resp = await httpclientid.retrieve(
         extra_params={"id": "all"}
     )
@@ -137,7 +93,7 @@ async def test_get_all():
 
 
 @pytest.mark.asyncio
-async def test_get_by_id_full():
+async def test_get_by_id_full(event_loop):
     resp = await httpclientid.retrieve(
         opt_id={"id": "1"},
         condition={"param_foo": "bar"},
@@ -150,7 +106,7 @@ async def test_get_by_id_full():
 
 
 @pytest.mark.asyncio
-async def test_get_filter():
+async def test_get_filter(event_loop):
     resp = await httpclient.retrieve(
         condition={"name": "al"},
         extra_params={"something": "nothing"}
@@ -165,7 +121,7 @@ async def test_get_filter():
 
 
 @pytest.mark.asyncio
-async def test_get_by_id():
+async def test_get_by_id(event_loop):
     resp = await httpclientid.retrieve(
         opt_id={"id": "1"}
     )
@@ -174,7 +130,7 @@ async def test_get_by_id():
 
 
 @pytest.mark.asyncio
-async def test_get_404():
+async def test_get_404(event_loop):
     try:
         resp = await httpclientid.retrieve(
             extra_params={"id": "8"}
@@ -182,9 +138,30 @@ async def test_get_404():
     except HTTPException as ex:
         assert ex.status_code == 404
 
+@pytest.mark.asyncio
+async def test_get_500(event_loop):
+    try:
+        resp = await httpclientid.retrieve(
+            opt_id={"id": "500"},
+            extra_params={"id": "500"}
+        )
+    except HTTPException as ex:
+        assert ex.status_code == 500
 
 @pytest.mark.asyncio
-async def test_create():
+async def test_create_422(event_loop):
+    try:
+        resp = await httpclient.create(
+            obj_in=ResourceID(id="66666666",
+                name="fox",
+                description="fox is F").dict()
+        )
+    except HTTPException as ex:
+        assert ex.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create(event_loop):
     resp = await httpclientid.retrieve(
         extra_params={"id": "all"}
     )
@@ -220,7 +197,7 @@ async def test_create():
 
 
 @pytest.mark.asyncio
-async def test_delete():
+async def test_delete(event_loop):
     try:
         resp = await httpclient.create(
             obj_in=ResourceID(id="6", name="fox", description="fox is F").dict()
@@ -232,12 +209,30 @@ async def test_delete():
             opt_id={"id": "6"},
             extra_params={"id": "6"}
         )
+        resp = await httpclientid.delete(
+            opt_id={"id": "6"}
+        )
+    except HTTPException as httpex:
+        assert httpex.status_code == 404
+
+@pytest.mark.asyncio
+async def test_delete_twice():
+    try:
+        resp = await httpclient.create(
+            obj_in=ResourceID(id="6", name="fox", description="fox is F").dict()
+        )
+        resp = await httpclientid.delete(
+            opt_id={"id": "6"}
+        )
+        resp = await httpclientid.delete(
+            opt_id={"id": "6"}
+        )
     except HTTPException as ex:
         assert ex.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_crud():
+async def test_crud(event_loop):
     resp = await httpclientid.retrieve(
         extra_params={"id": "all"}
     )
@@ -287,4 +282,4 @@ async def test_crud():
 
 
 if __name__ == '__main__':
-    pytest.main(['test_integration_client_and_mock.py'])
+    pytest.main([os.path.basename(__file__)])

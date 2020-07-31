@@ -19,7 +19,10 @@ from ._exceptions import HTTPException
 from ._model import *
 from ._status_code import status_codes, StatuCode
 from .aiohttp_backend import AioHttpClientBackend
+from .fastapi_testclient_backend import FastAPITestClientBackend
+from .requests_backend import RequestsClientBackend
 from .async_http_client import APIClient
 from .async_http_client import AsyncHTTPClientBackend
 from .async_http_client import AsyncHTTPClientContext
 from .async_http_client import AsyncHttpClientSession
+

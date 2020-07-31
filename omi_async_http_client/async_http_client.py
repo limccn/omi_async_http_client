@@ -100,6 +100,29 @@ class AsyncHttpClientSession(AsyncHTTPClientContext):
 class AsyncHTTPClientBackend:
     __metaclass__ = ABCMeta
 
+    def __init__(self, client=None, config=None):
+        super().__init__()
+        self._client_ref = client
+        self._config = config
+
+        self.setup_config()
+
+    @property
+    def config(self):
+        return self._config
+
+    @property
+    def client_ref(self):
+        return self._client_ref
+
+    def set_client_ref(self, value):
+        self._client_ref = value
+
+    def setup_config(self, config=None):
+        if not config:
+            return
+        self._config = config
+
     def send(self, url, data, header, auth, timeout) -> Any:
         """
         AsyncHTTPClientBackend执行DELETE操作，使用异步方式实现，返回ClientBackendResponse或 Dict
@@ -204,14 +227,16 @@ class AsyncHTTPClient(Generic[ModelType]):
     def __init__(
             self,
             model: Type[ModelType],
+            app: Any,
             http_backend: Union[str, Type[AsyncHTTPClientBackend]],
             resource_endpoint: str,
             client_id: Optional[str],
             client_secret: Optional[str],
+            config: Union[Dict, Any] = None
     ):
         """
         __init__构造函数，使用参数创建一个AsyncHTTPClient实例对象，并返回
-        model - Type[ModelType], 
+        model - Type[ModelType],
         http_backend - Union[str, AsyncHTTPClientBackend]，Backend的实现类，需要继承AsyncHTTPClientBackend接口
             可以使用str方式传入class名称，构造函数会根据str查找并自动解析响应的AsyncHTTPClientBackend
         resource_endpoint - str, 资源接入服务端的endpoint, 例：http://endpoint/api/v1
@@ -223,13 +248,50 @@ class AsyncHTTPClient(Generic[ModelType]):
         """
         assert http_backend, "http_backend can not be empty"
         assert resource_endpoint, "resource_endpoint can not be empty"
-        # 如果http_backend是str, 那么反射创建一个AsyncHTTPClientBackend的instance
+
+        # 保留app的引用
+        self._app_ref = app
+        # 设置app
+        self.setup_app(app)
+        # 设置backend
+        http_backend_instance = self.parse_backend_from_config(http_backend, config)
+        self.http_backend_name = http_backend_instance.__class__.__name__
+        self.http_backend = http_backend_instance
+
+        self.resource_endpoint = resource_endpoint
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.model = model
+        self.config = config
+
+    @property
+    def app_ref(self):
+        return self._app_ref
+
+    def setup_app(self, app):
+        """
+        关联manager与app context上下文,当前manager对象的引用将被设置到`app.state.OMI_ASYNC_HTTP_CLIENT`
+        """
+        # 为app增加cache_manager属性
+        if isinstance(app, object) and hasattr(app, "state"):
+            state = getattr(app, "state")
+            if hasattr(state, "OMI_ASYNC_HTTP_CLIENT"):
+                # 如果上下文已经设置app，则取消设置
+                pass
+            else:
+                setattr(state, "OMI_ASYNC_HTTP_CLIENT", self)
+
+    def parse_backend_from_config(self, http_backend, config):
+        """
+        配置当前client的backend的实例
+        """
+        # 如果http_backend是str, 那么反射创建一个http_backend的instance
         if isinstance(http_backend, str):
             name = http_backend.split('.')
             used = name.pop(0)
             try:
                 found = __import__(used)
-                # 查找模块下同名classmeta
+                # 查找模块下同名class_meta
                 for frag in name:
                     used += '.' + frag
                     try:
@@ -240,16 +302,19 @@ class AsyncHTTPClient(Generic[ModelType]):
                         __import__(used)
                         found = getattr(found, frag)
                 # 实例化instance
-                http_backend_instance = found()
+                cache_backend_instance = found(client=self, config=config)
             except ImportError:
                 raise ValueError('Cannot resolve http_backend type %s' % http_backend)
+        elif isinstance(http_backend, AsyncHTTPClientBackend):
+            # 设置client_ref
+            http_backend.set_client_ref(self)
+            # 设置config
+            http_backend.setup_config(config)
+            cache_backend_instance = http_backend
         else:
-            http_backend_instance = http_backend
-        self.resource_endpoint = resource_endpoint
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.http_backend = http_backend_instance
-        self.model = model
+            raise ValueError(
+                'http_backend type %s is not an instance of AsyncHTTPClientBackend ' % str(type(http_backend)))
+        return cache_backend_instance
 
     def get_url(
             self,
@@ -562,7 +627,9 @@ class AsyncHTTPClient(Generic[ModelType]):
                 auth=self.get_auth(extra_auths),
                 timeout=timeout,
             )
+
             logger.info(f"<AsyncHTTPClient>:RESPONSE={str(response)}")
+
             if isinstance(response, Dict):
                 # 获取响应代码
                 status_code = response.get("status_code", 0)
@@ -763,10 +830,12 @@ class AsyncHTTPClient(Generic[ModelType]):
 
 def api_client_builder(
         model: Type[ModelType],
+        app=None,
         http_backend="",
         resource_endpoint: str = "",
         client_id: str = "",
         client_secret: str = "",
+        config: Union[Dict, Any] = None
 ) -> AsyncHTTPClient:
     """
     使用参数创建一个AsyncHTTPClient实例对象，并返回
@@ -785,10 +854,12 @@ def api_client_builder(
     assert resource_endpoint, "resource_endpoint can not be empty"
     return AsyncHTTPClient(
         model=model,
+        app=app,
         http_backend=http_backend,
         resource_endpoint=resource_endpoint,
         client_id=client_id,
         client_secret=client_secret,
+        config=config
     )
 
 

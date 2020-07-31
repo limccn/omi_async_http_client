@@ -1,15 +1,50 @@
 from typing import Optional
-
+import secrets
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 
-from omi_async_http_client._model import RequestModel
+from omi_async_http_client import RequestModel
+from omi_async_http_client import HTTPException
+from omi_async_http_client import status_codes
+
 from test.mock.mock_async_http_client import APIClient
+
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+origins = [
+    "http://0.0.0.0",
+    "https://127.0.0.1",
+    "http://localhost",
+    "http://localhost:8003",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ==============================HTTP HTTPBasicAuth=================================
+
+security = HTTPBasic()
+
+def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, "client_id")
+    correct_password = secrets.compare_digest(credentials.password, "client_secret")
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status_codes.UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 # ==============================Demo for AsyncHTTPClient=================================
 
@@ -19,7 +54,9 @@ class Resource(BaseModel):
 
 
 class ResourceID(Resource):
-    id: str = None
+    id: str = Field(
+        None, title="ID length ", max_length=5
+    )
 
 
 @RequestModel(api_name="/resources", api_prefix="/database", api_suffix="")
@@ -41,6 +78,10 @@ resources = [
     {"id": "5", "name": "echo", "description": "echo is E"}
 ]
 
+
+@app.get("/mock/users/me")
+def read_current_user(credentials: HTTPBasicCredentials = Depends(security)):
+    return {"username": credentials.username, "password": credentials.password}
 
 @app.get("/mock/resources/all")
 def resources_get_all():
@@ -71,7 +112,6 @@ def resources_get(name: Optional[str]):
         return JSONResponse(
             status_code=404,
             content={
-                "code": 101,
                 "message": "not found",
                 "detail": {}
             })
@@ -79,6 +119,14 @@ def resources_get(name: Optional[str]):
 
 @app.get("/mock/resources/{id}")
 def resources_get_by_id(id: str):
+    if id == "500":
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": 105,
+                "message": "Server Interal Error",
+                "detail": {}
+            })   # mock a 500 error
     for item in resources:
         if item["id"] == id:
             return JSONResponse(
@@ -100,7 +148,7 @@ def resources_get_by_id(id: str):
 
 
 @app.put("/mock/resources/{id}")
-def resources_put(id: str, resource: Resource):
+def resources_put(id: str, resource: Resource, username = Depends(get_current_username)):
     for item in resources:
         if item["id"] == id:
             item["name"] = resource.name
@@ -122,7 +170,7 @@ def resources_put(id: str, resource: Resource):
 
 
 @app.post("/mock/resources")
-def resources_post(resource: ResourceID):
+def resources_post(resource: ResourceID, username = Depends(get_current_username)):
     resources.append(resource.dict())
     return JSONResponse(
         status_code=201,
@@ -134,7 +182,7 @@ def resources_post(resource: ResourceID):
 
 
 @app.delete("/mock/resources/{id}")
-def resources_delete(id: str):
+def resources_delete(id: str, username = Depends(get_current_username)):
     for item in resources:
         if item["id"] == id:
             resources.remove(item)
@@ -148,7 +196,6 @@ def resources_delete(id: str):
     return JSONResponse(
         status_code=404,
         content={
-            "code": 102,
             "message": "not found",
             "detail": {}
         })
@@ -160,7 +207,7 @@ def resources_delete(id: str):
 
 @app.get("/mock/rpc/resources/{id}")
 async def resources_get_form_rpc(id: str):
-    client = APIClient(APIResourceID)
+    client = APIClient(model=APIResourceID,app=app)
     resp = await client.retrieve(
         opt_id={"id": id}
     )

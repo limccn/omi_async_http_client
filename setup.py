@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = "omi_async_http_client",
-    version = "0.1.3",
+    version = "0.1.4",
     keywords = ("http_client","aio","async","asyncio"),
     description = "An async http client implemented with [asyncio] and backends",
     long_description = "An async http client implemented with [asyncio] and backends, \

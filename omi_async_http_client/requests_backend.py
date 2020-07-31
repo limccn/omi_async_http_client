@@ -16,18 +16,19 @@ limitations under the License.
 """
 
 import asyncio
+import functools
 import json
-from typing import Dict, cast, Any, Union
+from typing import Dict, cast, Any, Union, Tuple
 
-import aiohttp
-from aiohttp import ClientError, ServerTimeoutError, ClientTimeout, BasicAuth
+import requests
+from requests.exceptions import ConnectTimeout, HTTPError
 
 from ._exceptions import HTTPException
 from ._status_code import status_codes
 from .async_http_client import AsyncHTTPClientBackend, ClientBackendResponse
 
 
-# class AioHttpClientSession(AsyncHttpClientSession):
+# class RequestsClientSession(AsyncHttpClientSession):
 #     def __init__(self):
 #         super().__init__()
 #         self._client_or_session = None
@@ -39,7 +40,7 @@ from .async_http_client import AsyncHTTPClientBackend, ClientBackendResponse
 #         pass
 
 
-class AioHttpClientBackend(AsyncHTTPClientBackend):
+class RequestsClientBackend(AsyncHTTPClientBackend):
     def __init__(self, client=None, config=None, event_loop=None):
         super().__init__(client=client, config=config)
         self._event_loop = event_loop
@@ -57,63 +58,78 @@ class AioHttpClientBackend(AsyncHTTPClientBackend):
             data=None,
             headers=None,
             auth=None,
-            timeout=ClientTimeout(total=1 * 60),
+            timeout=60,
     ):
         try:
-            async with aiohttp.request(
+            # response = requests.request(
+            #     method=method,
+            #     url=str(url),
+            #     data=None,
+            #     json=json.dumps(data),
+            #     headers=headers,
+            #     auth=auth,
+            #     timeout=timeout,
+            # )
+
+            future = self.get_event_loop().run_in_executor(
+                None,
+                functools.partial(
+                    requests.request,
                     method=method,
                     url=str(url),
                     data=json.dumps(data),
                     headers=headers,
                     auth=auth,
                     timeout=timeout,
-            ) as response:
-                # 获得状态代码，不需要等到response收到
-                status = response.status
-                # 服务端50x错误
-                if status_codes.is_server_error(status):
-                    raise HTTPException(status_code=status)
-                # 客户端40x错误
-                elif status_codes.is_client_error(status):
-                    pass  # 跳过40x错误，由客户端程序处理
-                else:
-                    pass
-                response_json = await response.json()
-                # 没有返回空白content
-                if not response_json:
-                    return ClientBackendResponse(
-                        status_code=status, response={}
-                    )
-                # 转换为字典格式
-                response_dict = cast(Dict[str, Any], response_json)
-                # 解码过滤已收到的response
-                self.filter_received_response(status, response_dict)
-                # 返回组合后的ClientBackendResponse对象
-                return ClientBackendResponse(
-                    status_code=status, response=response_dict
                 )
-        except ServerTimeoutError as err:
+            )
+            response = await future
+
+            # 获得状态代码，不需要等到response收到
+            status = response.status_code
+            # 服务端50x错误
+            if status_codes.is_server_error(status):
+                raise HTTPException(status_code=status)
+            # 客户端40x错误
+            elif status_codes.is_client_error(status):
+                pass  # 跳过40x错误，由客户端程序处理
+            else:
+                pass
+            # 没有返回content
+            if not response.content:
+                return ClientBackendResponse(
+                    status_code=status, response={}
+                )
+            # 转换为字典格式
+            response_dict = cast(Dict[str, Any], response.json())
+            # 解码过滤已收到的response
+            self.filter_received_response(status, response_dict)
+            # 返回组合后的ClientBackendResponse对象
+            return ClientBackendResponse(
+                status_code=status, response=response_dict
+            )
+        except ConnectTimeout as err:
             # 服务器超时错误
             raise HTTPException(status_code=status_codes.REQUEST_TIMEOUT, detail=str(err))
-        except ClientError as err:
+        except HTTPError as err:
             # 其他类型错误统一使用503代码返回
             raise HTTPException(status_code=status_codes.SERVICE_UNAVAILABLE, detail=str(err))
 
-    async def send(self, url, data, header, auth: Union[BasicAuth, Dict], timeout: int):
+    async def send(self, url, data, header, auth: Union[Tuple, Dict], timeout: int):
         """
         Will raise NotImplementedError
         @See AsyncHTTPClientBackend.send(url, data, header, auth, timeout)
         """
         raise NotImplementedError
 
-    async def head(self, url, header, auth: Union[BasicAuth, Dict], timeout: int) -> Union[ClientBackendResponse, Dict]:
+    async def head(self, url, header, auth: Union[Tuple, Dict], timeout: int) -> Union[ClientBackendResponse, Dict]:
         """
         @See AsyncHTTPClientBackend.head(url, data, header, auth, timeout)
         """
         if isinstance(auth, Dict):
             login = auth.get("username", "")
             password = auth.get("password", "")
-            auth_method = BasicAuth(login, password)
+            auth_method = (login, password)
         else:
             auth_method = auth
 
@@ -123,10 +139,10 @@ class AioHttpClientBackend(AsyncHTTPClientBackend):
             data=None,
             headers=header,
             auth=auth_method,
-            timeout=ClientTimeout(total=timeout),
+            timeout=timeout,
         )
 
-    async def get(self, url, data, header, auth: Union[BasicAuth, Dict], timeout: int) \
+    async def get(self, url, data, header, auth: Union[Tuple, Dict], timeout: int) \
             -> Union[ClientBackendResponse, Dict]:
         """
         @See AsyncHTTPClientBackend.get(url, data, header, auth, timeout)
@@ -134,7 +150,7 @@ class AioHttpClientBackend(AsyncHTTPClientBackend):
         if isinstance(auth, Dict):
             login = auth.get("username", "")
             password = auth.get("password", "")
-            auth_method = BasicAuth(login, password)
+            auth_method = (login, password)
         else:
             auth_method = auth
 
@@ -144,10 +160,10 @@ class AioHttpClientBackend(AsyncHTTPClientBackend):
             data=None,
             headers=header,
             auth=auth_method,
-            timeout=ClientTimeout(total=timeout),
+            timeout=timeout,
         )
 
-    async def put(self, url, data, header, auth: Union[BasicAuth, Dict], timeout: int) \
+    async def put(self, url, data, header, auth: Union[Tuple, Dict], timeout: int) \
             -> Union[ClientBackendResponse, Dict]:
         """
         @See AsyncHTTPClientBackend.put(url, data, header, auth, timeout)
@@ -155,7 +171,7 @@ class AioHttpClientBackend(AsyncHTTPClientBackend):
         if isinstance(auth, Dict):
             login = auth.get("username", "")
             password = auth.get("password", "")
-            auth_method = BasicAuth(login, password)
+            auth_method = (login, password)
         else:
             auth_method = auth
 
@@ -165,10 +181,10 @@ class AioHttpClientBackend(AsyncHTTPClientBackend):
             data=data,
             headers=header,
             auth=auth_method,
-            timeout=ClientTimeout(total=timeout),
+            timeout=timeout,
         )
 
-    async def post(self, url, data, header, auth: Union[BasicAuth, Dict], timeout: int) \
+    async def post(self, url, data, header, auth: Union[Tuple, Dict], timeout: int) \
             -> Union[ClientBackendResponse, Dict]:
         """
         @See AsyncHTTPClientBackend.post(url, data, header, auth, timeout)
@@ -176,7 +192,7 @@ class AioHttpClientBackend(AsyncHTTPClientBackend):
         if isinstance(auth, Dict):
             login = auth.get("username", "")
             password = auth.get("password", "")
-            auth_method = BasicAuth(login, password)
+            auth_method = login, password
         else:
             auth_method = auth
 
@@ -186,10 +202,10 @@ class AioHttpClientBackend(AsyncHTTPClientBackend):
             data=data,
             headers=header,
             auth=auth_method,
-            timeout=ClientTimeout(total=timeout),
+            timeout=timeout
         )
 
-    async def delete(self, url, data, header, auth: Union[BasicAuth, Dict], timeout: int) \
+    async def delete(self, url, data, header, auth: Union[Tuple, Dict], timeout: int) \
             -> Union[ClientBackendResponse, Dict]:
         """
         @See AsyncHTTPClientBackend.delete(url, data, header, auth, timeout)
@@ -197,7 +213,7 @@ class AioHttpClientBackend(AsyncHTTPClientBackend):
         if isinstance(auth, Dict):
             login = auth.get("username", "")
             password = auth.get("password", "")
-            auth_method = BasicAuth(login, password)
+            auth_method = (login, password)
         else:
             auth_method = auth
 
@@ -207,7 +223,7 @@ class AioHttpClientBackend(AsyncHTTPClientBackend):
             data=data,
             headers=header,
             auth=auth_method,
-            timeout=ClientTimeout(total=timeout),
+            timeout=timeout,
         )
 
     def filter_received_response(self, status, response_dict):
