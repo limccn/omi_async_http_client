@@ -21,25 +21,25 @@ $python setup.py install
 
 use an async backend, eg. [aiohttp](https://github.com/aio-libs/aiohttp) or [httpx](https://github.com/encode/httpx/)
 
-```python
- # use aiohttp as backend
+```shell script
+ # use aiohttp as backend, async only
  $pip install aiohttp
 ```
 
-```python
- # use httpx as backend
+```shell script
+ # use httpx as backend, support both sync and async
  $pip install httpx
 ```  
 or use a traditional sync backends [requests](https://github.com/psf/requests)
 
-```python
- # use requests as backend
+```shell script
+ # use requests as backend, sync only
  $pip install requests
 ```  
 
 3.Apply to your project.
 
-Set up a TEMPLATE APIClient builder function from omi_async_http_client.APIClient, 
+Set up a TEMPLATE APIClient builder function from `omi_async_http_client.APIClient`, 
 
 omi_async_http_client will automatically fill backend parameters for execute a http request when use your TEMPLATE APIClient.
 
@@ -51,10 +51,14 @@ from app.config import settings
 def my_api_client_builder(model):
     return APIClientBuilder(
         model=model, # None is OK
-        http_backend="omi_async_http_client.AioHttpClientBackend", # choose aiohttp as backend
+        app=None, # app context to bind, None is OK
+        # choose aiohttp as backend
+        # use backend alias AioHttpClientBackend, or aiohttp
+        http_backend="AioHttpClientBackend", # will convert to "omi_async_http_client.AioHttpClientBackend"
         resource_endpoint=settings.get("API_ENDPOINT_URL", ""),
         client_id=settings.get("API_ENDPOINT_CLIENT_ID", ""),
-        client_secret=settings.get("API_ENDPOINT_CLIENT_SECRET", "")
+        client_secret=settings.get("API_ENDPOINT_CLIENT_SECRET", ""),
+        config=None,  # extra config, # None is OK
     )
 MyAPIClient = my_api_client_builder
 ```
