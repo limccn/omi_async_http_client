@@ -1,6 +1,5 @@
-import sys
-
 from omi_async_http_client import APIClient as OmiAPIClientBuilder
+
 
 def mock_rpc_api_client_builder(model,
                                 app=None,
@@ -9,7 +8,6 @@ def mock_rpc_api_client_builder(model,
                                 client_id="client_id",
                                 client_secret="client_secret"
                                 ):
-
     return OmiAPIClientBuilder(
         model=model,
         app=app,

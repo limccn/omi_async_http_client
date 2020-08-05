@@ -22,7 +22,6 @@ from typing import Optional
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
-
 from requests.auth import HTTPBasicAuth
 
 sys.path.append("../")
@@ -72,62 +71,62 @@ httpclientid = APIClient(model=ResourceID,
                          resource_endpoint="/mock")
 
 httpclient_no_auth = APIClient(model=Resource,
-                       app=app,
-                       http_backend="omi_async_http_client.fastapi_testclient_backend.FastAPITestClientBackend",
-                       client_id="xxx",
-                       client_secret="xxx",
-                       resource_endpoint="/mock")
+                               app=app,
+                               http_backend="omi_async_http_client.fastapi_testclient_backend.FastAPITestClientBackend",
+                               client_id="xxx",
+                               client_secret="xxx",
+                               resource_endpoint="/mock")
 
 httpclientid_no_auth = APIClient(model=ResourceID,
-                         app=app,
-                         http_backend=backend,
-                         client_id="xxx",
-                         client_secret="xxx",
-                         resource_endpoint="/mock")
+                                 app=app,
+                                 http_backend=backend,
+                                 client_id="xxx",
+                                 client_secret="xxx",
+                                 resource_endpoint="/mock")
+
 
 def test_builder(setup_module):
     test_client = TestClient(app)
 
     backend = FastAPITestClientBackend(test_client=test_client)
     httpclient = APIClient(model=ResourceID,
-                            app=app,
-                            http_backend=backend,
-                            resource_endpoint="/mock")
+                           app=app,
+                           http_backend=backend,
+                           resource_endpoint="/mock")
     assert httpclient.app_ref is not None
     assert httpclient.http_backend.client_ref is httpclient
     assert httpclient.http_backend_name == "FastAPITestClientBackend"
-    
 
     backend = FastAPITestClientBackend(test_client=test_client)
     httpclient = APIClient(model=ResourceID,
-                            app=None,
-                            http_backend=backend,
-                            resource_endpoint="/mock")
+                           app=None,
+                           http_backend=backend,
+                           resource_endpoint="/mock")
     assert httpclient.app_ref is None
     assert httpclient.http_backend.client_ref is httpclient
     assert httpclient.http_backend_name == "FastAPITestClientBackend"
 
     backend = FastAPITestClientBackend()
     httpclient = APIClient(model=ResourceID,
-                            app=app,
-                            http_backend=backend,
-                            resource_endpoint="/mock",
-                            config={})
+                           app=app,
+                           http_backend=backend,
+                           resource_endpoint="/mock",
+                           config={})
     assert httpclient.app_ref is not None
     assert httpclient.config is not None
     assert httpclient.http_backend.client_ref is httpclient
     assert httpclient.http_backend_name == "FastAPITestClientBackend"
 
-    #set testclient from app
+    # set testclient from app
     client = httpclient.http_backend.get_test_client()
     assert client is not None
 
     backend = FastAPITestClientBackend(config={})
     httpclient = APIClient(model=ResourceID,
-                            app=None,
-                            http_backend=backend,
-                            resource_endpoint="/mock",
-                            config={"FOO":"BAR"})
+                           app=None,
+                           http_backend=backend,
+                           resource_endpoint="/mock",
+                           config={"FOO": "BAR"})
     assert httpclient.app_ref is None
 
     httpclientonfig = httpclient.config
@@ -140,11 +139,11 @@ def test_builder(setup_module):
     assert httpclient.http_backend.client_ref is httpclient
     assert httpclient.http_backend_name == "FastAPITestClientBackend"
 
-    #cannot set testclient from app
+    # cannot set testclient from app
     try:
         client = httpclient.http_backend.get_test_client()
     except Exception as ex:
-        assert isinstance(ex,AssertionError)
+        assert isinstance(ex, AssertionError)
 
 
 @pytest.fixture(scope='function')
@@ -175,7 +174,8 @@ async def test_send(event_loop):
             auth=HTTPBasicAuth("client_id", "client_secret"),
             timeout=60)
     except Exception as err:
-        assert isinstance(err,NotImplementedError)
+        assert isinstance(err, NotImplementedError)
+
 
 @pytest.mark.asyncio
 async def test_head(event_loop):
@@ -185,6 +185,7 @@ async def test_head(event_loop):
         auth=HTTPBasicAuth("client_id", "client_secret"),
         timeout=60)
     assert resp.status_code == 405  # filtered by server config ,return 405
+
 
 @pytest.mark.asyncio
 async def test_get_all(event_loop):
@@ -243,6 +244,7 @@ async def test_get_404(event_loop):
     except HTTPException as ex:
         assert ex.status_code == 404
 
+
 @pytest.mark.asyncio
 async def test_get_500(event_loop):
     try:
@@ -259,8 +261,8 @@ async def test_create_422(event_loop):
     try:
         resp = await httpclient.create(
             obj_in=ResourceID(id="66666666",
-                name="fox",
-                description="fox is F").dict()
+                              name="fox",
+                              description="fox is F").dict()
         )
     except HTTPException as ex:
         assert ex.status_code == 422
@@ -368,6 +370,7 @@ async def test_crud(event_loop):
         opt_id={"id": "6"}
     )
 
+
 @pytest.mark.asyncio
 async def test_get_no_auth(event_loop):
     # use invalid auth
@@ -379,8 +382,8 @@ async def test_get_no_auth(event_loop):
         assert httpex.status_code == 401
     # use valid auth
     resp = await httpclient.create(
-            obj_in=ResourceID(id="6", name="fox", description="fox is F").dict()
-        )
+        obj_in=ResourceID(id="6", name="fox", description="fox is F").dict()
+    )
     # use invalid auth
     try:
         resp = await httpclientid_no_auth.delete(
@@ -390,7 +393,7 @@ async def test_get_no_auth(event_loop):
         assert httpex.status_code == 401
     # use valid auth
     resp = await httpclientid.delete(
-            opt_id={"id": "6"}
+        opt_id={"id": "6"}
     )
     # data is deleted
     try:
@@ -400,7 +403,6 @@ async def test_get_no_auth(event_loop):
         )
     except HTTPException as httpex:
         assert httpex.status_code == 404
-
 
 
 if __name__ == '__main__':

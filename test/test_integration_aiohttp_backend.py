@@ -15,8 +15,8 @@ limitations under the License.
 
 """
 
-import sys
 import os
+import sys
 from typing import Optional
 
 import pytest
@@ -27,8 +27,7 @@ sys.path.append("../")
 from omi_async_http_client.async_http_client import APIClient
 from omi_async_http_client._model import RequestModel
 from omi_async_http_client._exceptions import HTTPException
-from omi_async_http_client._status_code import status_codes
-from omi_async_http_client.aiohttp_backend import AioHttpClientBackend
+
 
 @RequestModel(api_name="/resources", api_prefix="/mock", api_suffix="")
 class Resource(BaseModel):
@@ -72,6 +71,7 @@ def setup_module(request):
 
     request.addfinalizer(teardown_module)
     print('setup_module called.')
+
 
 @pytest.mark.asyncio
 async def test_get_all():
@@ -130,6 +130,7 @@ async def test_get_404():
     except HTTPException as ex:
         assert ex.status_code == 404
 
+
 @pytest.mark.asyncio
 async def test_get_500(event_loop):
     try:
@@ -140,13 +141,14 @@ async def test_get_500(event_loop):
     except HTTPException as ex:
         assert ex.status_code == 500
 
+
 @pytest.mark.asyncio
 async def test_create_422(event_loop):
     try:
         resp = await httpclient.create(
             obj_in=ResourceID(id="66666666",
-                name="fox",
-                description="fox is F").dict()
+                              name="fox",
+                              description="fox is F").dict()
         )
     except HTTPException as ex:
         assert ex.status_code == 422
@@ -203,7 +205,6 @@ async def test_delete():
         )
     except HTTPException as ex:
         assert ex.status_code == 404
-
 
 
 @pytest.mark.asyncio

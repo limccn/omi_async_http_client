@@ -11,7 +11,7 @@ install:
 
 coverage:
 	cd ${TEST_CASE_DIR} && \
-    pytest --cov=${MODULE_NAME} --cov-report=html ./test*
+    pytest ./test* --cov=${MODULE_NAME} --cov-report=html
     
 unittest:
 	cd ${TEST_CASE_DIR} && \

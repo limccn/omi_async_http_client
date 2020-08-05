@@ -15,8 +15,8 @@ limitations under the License.
 
 """
 
-import sys
 import os
+import sys
 from typing import Optional
 
 import pytest
@@ -27,9 +27,7 @@ sys.path.append("../")
 from omi_async_http_client.async_http_client import APIClient
 from omi_async_http_client._model import RequestModel
 from omi_async_http_client._exceptions import HTTPException
-from omi_async_http_client._status_code import status_codes
 
-from omi_async_http_client.requests_backend import RequestsClientBackend
 
 # =======================================
 # install nest_asyncio for unit test when
@@ -45,23 +43,26 @@ class Resource(BaseModel):
     name: Optional[str]
     description: Optional[str]
 
+
 @RequestModel(api_name="/resources/{id}", api_prefix="/mock", api_suffix="")
 class ResourceID(Resource):
     id: Optional[str]
 
+
 httpclient = APIClient(model=Resource,
-            app=None,
-            http_backend="omi_async_http_client.requests_backend.RequestsClientBackend",
-            client_id="client_id",
-            client_secret="client_secret",
-            resource_endpoint="http://localhost:8003") 
+                       app=None,
+                       http_backend="omi_async_http_client.requests_backend.RequestsClientBackend",
+                       client_id="client_id",
+                       client_secret="client_secret",
+                       resource_endpoint="http://localhost:8003")
 
 httpclientid = APIClient(model=ResourceID,
-            app=None,
-            http_backend="omi_async_http_client.requests_backend.RequestsClientBackend",
-            client_id="client_id",
-            client_secret="client_secret",
-            resource_endpoint="http://localhost:8003") 
+                         app=None,
+                         http_backend="omi_async_http_client.requests_backend.RequestsClientBackend",
+                         client_id="client_id",
+                         client_secret="client_secret",
+                         resource_endpoint="http://localhost:8003")
+
 
 @pytest.fixture(scope='function')
 def setup_function(request):
@@ -138,6 +139,7 @@ async def test_get_404(event_loop):
     except HTTPException as ex:
         assert ex.status_code == 404
 
+
 @pytest.mark.asyncio
 async def test_get_500(event_loop):
     try:
@@ -148,13 +150,14 @@ async def test_get_500(event_loop):
     except HTTPException as ex:
         assert ex.status_code == 500
 
+
 @pytest.mark.asyncio
 async def test_create_422(event_loop):
     try:
         resp = await httpclient.create(
             obj_in=ResourceID(id="66666666",
-                name="fox",
-                description="fox is F").dict()
+                              name="fox",
+                              description="fox is F").dict()
         )
     except HTTPException as ex:
         assert ex.status_code == 422
@@ -214,6 +217,7 @@ async def test_delete(event_loop):
         )
     except HTTPException as httpex:
         assert httpex.status_code == 404
+
 
 @pytest.mark.asyncio
 async def test_delete_twice():

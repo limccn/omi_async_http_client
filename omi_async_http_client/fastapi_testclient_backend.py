@@ -6,9 +6,9 @@ from typing import Dict, cast, Any, Union
 from fastapi.testclient import TestClient
 from requests.auth import HTTPBasicAuth
 
-from omi_async_http_client import AsyncHTTPClientBackend
 from omi_async_http_client._exceptions import HTTPException
 from omi_async_http_client._status_code import status_codes
+from omi_async_http_client.async_http_client import AsyncHTTPClientBackend
 from omi_async_http_client.async_http_client import ClientBackendResponse
 
 

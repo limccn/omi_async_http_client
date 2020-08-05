@@ -47,7 +47,6 @@ class AsyncHTTPClientContext:
         Proxy function for internal cache object.
         @See CacheContext.create
         """
-        raise NotImplementedError
 
     @abstractmethod
     def destroy(self):
@@ -55,7 +54,6 @@ class AsyncHTTPClientContext:
         Proxy function for internal cache object.
         @See CacheContext.destroy
         """
-        raise NotImplementedError
 
 
 class AsyncHttpClientSession(AsyncHTTPClientContext):
@@ -86,7 +84,6 @@ class AsyncHttpClientSession(AsyncHTTPClientContext):
         Proxy function for internal cache object.
         @See CacheContext.create
         """
-        raise NotImplementedError
 
     @abstractmethod
     def destroy(self):
@@ -94,7 +91,6 @@ class AsyncHttpClientSession(AsyncHTTPClientContext):
         Proxy function for internal cache object.
         @See CacheContext.destroy
         """
-        raise NotImplementedError
 
 
 class AsyncHTTPClientBackend:
@@ -123,6 +119,7 @@ class AsyncHTTPClientBackend:
             return
         self._config = config
 
+    @abstractmethod
     def send(self, url, data, header, auth, timeout) -> Any:
         """
         AsyncHTTPClientBackend执行DELETE操作，使用异步方式实现，返回ClientBackendResponse或 Dict
@@ -138,8 +135,8 @@ class AsyncHTTPClientBackend:
         Memo::
 
         """
-        raise NotImplementedError
 
+    @abstractmethod
     def head(self, url, header, auth, timeout) -> Any:
         """
         AsyncHTTPClientBackend执行HEAD操作，使用异步方式实现，返回ClientBackendResponse或 Dict
@@ -153,8 +150,8 @@ class AsyncHTTPClientBackend:
 
         Memo::
         """
-        raise NotImplementedError
 
+    @abstractmethod
     def get(
             self, url, data, header, auth, timeout
     ) -> Union[ClientBackendResponse, Dict]:
@@ -168,8 +165,8 @@ class AsyncHTTPClientBackend:
 
         Memo::
         """
-        raise NotImplementedError
 
+    @abstractmethod
     def put(
             self, url, data, header, auth, timeout
     ) -> Union[ClientBackendResponse, Dict]:
@@ -183,8 +180,8 @@ class AsyncHTTPClientBackend:
 
         Memo::
         """
-        raise NotImplementedError
 
+    @abstractmethod
     def post(
             self, url, data, header, auth, timeout
     ) -> Union[ClientBackendResponse, Dict]:
@@ -198,8 +195,8 @@ class AsyncHTTPClientBackend:
 
         Memo::
         """
-        raise NotImplementedError
 
+    @abstractmethod
     def delete(
             self, url, data, header, auth, timeout
     ) -> Union[ClientBackendResponse, Dict]:
@@ -213,7 +210,6 @@ class AsyncHTTPClientBackend:
 
         Memo::
         """
-        raise NotImplementedError
 
 
 class AsyncHTTPClient(Generic[ModelType]):
@@ -275,11 +271,14 @@ class AsyncHTTPClient(Generic[ModelType]):
         # 为app增加cache_manager属性
         if isinstance(app, object) and hasattr(app, "state"):
             state = getattr(app, "state")
-            if hasattr(state, "OMI_ASYNC_HTTP_CLIENT"):
-                # 如果上下文已经设置app，则取消设置
-                pass
+            if state is not None and isinstance(state, object):
+                if hasattr(state, "OMI_ASYNC_HTTP_CLIENT"):
+                    # 如果上下文已经设置app，则取消设置
+                    pass
+                else:
+                    app.state.OMI_ASYNC_HTTP_CLIENT = self
             else:
-                setattr(state, "OMI_ASYNC_HTTP_CLIENT", self)
+                pass
 
     def parse_backend_from_config(self, http_backend, config):
         """
@@ -287,6 +286,19 @@ class AsyncHTTPClient(Generic[ModelType]):
         """
         # 如果http_backend是str, 那么反射创建一个http_backend的instance
         if isinstance(http_backend, str):
+            # alias
+            http_backend_lower = http_backend.lower()
+            if http_backend_lower in ["requestsclientbackend", "requests"]:
+                http_backend = "omi_async_http_client.requests_backend.RequestsClientBackend"
+            elif http_backend_lower in ["aiohttpclientbackend", "aiohttp"]:
+                http_backend = "omi_async_http_client.aiohttp_backend.AioHttpClientBackend"
+            elif http_backend_lower in ["httpxclientbackend", "httpx"]:
+                # http_backend = "omi_async_http_client.httpx_backend.HttpxClientBackend"
+                raise NotImplementedError("HttpxClientBackend is not implemented")
+            elif http_backend_lower in ["fastapitestclientbackend", "fastapi_test_client"]:
+                http_backend = "omi_async_http_client.fastapi_testclient_backend.FastAPITestClientBackend"
+            else:
+                pass
             name = http_backend.split('.')
             used = name.pop(0)
             try:

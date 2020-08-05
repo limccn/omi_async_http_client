@@ -193,6 +193,7 @@ def resources_delete(id: str, username = Depends(get_current_username)):
                     "message": "success",
                     "detail": {}
                 })
+    # return without `code`
     return JSONResponse(
         status_code=404,
         content={

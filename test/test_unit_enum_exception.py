@@ -15,8 +15,8 @@ limitations under the License.
 
 """
 
-import sys
 import os
+import sys
 from typing import Optional
 
 import pytest
@@ -30,6 +30,9 @@ from omi_async_http_client._exceptions import HTTPException
 from omi_async_http_client._exceptions import http_exception_decorator
 from omi_async_http_client._status_code import status_codes
 from omi_async_http_client.aiohttp_backend import AioHttpClientBackend
+from omi_async_http_client.requests_backend import RequestsClientBackend
+from omi_async_http_client.fastapi_testclient_backend import FastAPITestClientBackend
+
 
 @RequestModel(api_name="/resources", api_prefix="/mock", api_suffix="")
 class Resource(BaseModel):
@@ -52,6 +55,7 @@ httpclientid = APIClient(model=ResourceID,
                          http_backend="omi_async_http_client.aiohttp_backend.AioHttpClientBackend",
                          resource_endpoint="http://localhost:8003")
 
+
 @pytest.fixture(scope='function')
 def setup_function(request):
     def teardown_function():
@@ -70,7 +74,7 @@ def setup_module(request):
     print('setup_module called.')
 
 
-def test_builder(setup_module):
+def test_builder_err(setup_module):
     try:
         client_for_test = APIClient(model=Resource,
                                     app=None,
@@ -81,10 +85,36 @@ def test_builder(setup_module):
 
     try:
         client_for_test = APIClient(model=Resource,
+                                    app=None,
+                                    http_backend=tuple("somebackend"),
+                                    resource_endpoint="http://localhost:8003")
+    except Exception as err:
+        assert isinstance(err, ValueError)
+
+    try:
+        client_for_test = APIClient(model=Resource,
                                     http_backend="SomeHttpClientBackend")
     except AssertionError as err:
         assert str(err) == 'resource_endpoint can not be empty'
 
+    try:
+        client_for_test = APIClient(model=Resource,
+                                    app=None,
+                                    http_backend="httpx",
+                                    resource_endpoint="http://localhost:8003")
+    except NotImplementedError as err:
+        pass
+
+    try:
+        client_for_test = APIClient(model=Resource,
+                                    app=None,
+                                    http_backend="HttpxClientBackend",
+                                    resource_endpoint="http://localhost:8003")
+    except NotImplementedError as err:
+        pass
+
+
+def test_builder(setup_module):
     client_for_test = APIClient(model=Resource,
                                 app=None,
                                 http_backend="omi_async_http_client.aiohttp_backend.AioHttpClientBackend",
@@ -97,6 +127,42 @@ def test_builder(setup_module):
                                 http_backend=backend,
                                 resource_endpoint="http://localhost:8003")
     assert isinstance(client_for_test.http_backend, AioHttpClientBackend)
+
+    client_for_test = APIClient(model=Resource,
+                                app=None,
+                                http_backend="aiohttp",
+                                resource_endpoint="http://localhost:8003")
+    assert isinstance(client_for_test.http_backend, AioHttpClientBackend)
+
+    client_for_test = APIClient(model=Resource,
+                                app=None,
+                                http_backend="AioHttpClientBackend",
+                                resource_endpoint="http://localhost:8003")
+    assert isinstance(client_for_test.http_backend, AioHttpClientBackend)
+
+    client_for_test = APIClient(model=Resource,
+                                app=None,
+                                http_backend="requests",
+                                resource_endpoint="http://localhost:8003")
+    assert isinstance(client_for_test.http_backend, RequestsClientBackend)
+
+    client_for_test = APIClient(model=Resource,
+                                app=None,
+                                http_backend="RequestsClientBackend",
+                                resource_endpoint="http://localhost:8003")
+    assert isinstance(client_for_test.http_backend, RequestsClientBackend)
+
+    client_for_test = APIClient(model=Resource,
+                                app=None,
+                                http_backend="fastapi_test_client",
+                                resource_endpoint="http://localhost:8003")
+    assert isinstance(client_for_test.http_backend, FastAPITestClientBackend)
+
+    client_for_test = APIClient(model=Resource,
+                                app=None,
+                                http_backend="FastAPITestClientBackend",
+                                resource_endpoint="http://localhost:8003")
+    assert isinstance(client_for_test.http_backend, FastAPITestClientBackend)
 
 
 def test_enum(setup_module):
@@ -132,12 +198,13 @@ def test_exception(setup_module):
         assert repr(e) == "HTTPException(status_code=<StatuCode.OK: 200>,trace_code=111,detail='something detail')"
 
 
-#http_exception_decorator,decorator a BaseException to HTTPException with default values
+# http_exception_decorator,decorator a BaseException to HTTPException with default values
 @http_exception_decorator(status_code=status_codes.NOT_FOUND,
-                        trace_code=101,
-                        detail="something detail")
+                          trace_code=101,
+                          detail="something detail")
 class FooException(BaseException):
     pass
+
 
 def test_http_exception_decorator(setup_module):
     try:

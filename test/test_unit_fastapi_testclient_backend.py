@@ -15,22 +15,16 @@ limitations under the License.
 
 """
 
+import asyncio
 import os
 import sys
-import asyncio
-import json
-from typing import Optional
 
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import BaseModel
-
 from requests.auth import HTTPBasicAuth
 
 sys.path.append("../")
 
-from omi_async_http_client.async_http_client import APIClient
-from omi_async_http_client._model import RequestModel
 from omi_async_http_client._exceptions import HTTPException
 from omi_async_http_client.fastapi_testclient_backend import FastAPITestClientBackend
 
@@ -50,7 +44,8 @@ BASE_URL = ""
 
 backend = FastAPITestClientBackend(test_client=test_client)
 
-backend_event_loop = FastAPITestClientBackend(event_loop=asyncio.new_event_loop(),test_client=test_client)
+backend_event_loop = FastAPITestClientBackend(event_loop=asyncio.new_event_loop(), test_client=test_client)
+
 
 @pytest.fixture(scope='function')
 def setup_function(request):
@@ -77,33 +72,36 @@ async def test_event_loop(event_loop):
     event_loop = backend_event_loop.get_event_loop()
     assert event_loop is not None
 
+
 @pytest.mark.asyncio
 async def test_send(event_loop):
     try:
         resp = await backend.send(
-            url=BASE_URL+"/mock/users/me",
+            url=BASE_URL + "/mock/users/me",
             data={},
             header={},
             auth=HTTPBasicAuth("client_id", "client_secret"),
             timeout=60)
     except Exception as err:
-        assert isinstance(err,NotImplementedError)
+        assert isinstance(err, NotImplementedError)
+
 
 @pytest.mark.asyncio
 async def test_head(event_loop):
     resp = await backend.head(
-        url=BASE_URL+"/mock/users/me",
+        url=BASE_URL + "/mock/users/me",
         header={},
         auth=HTTPBasicAuth("client_id", "client_secret"),
         timeout=60)
     assert resp.status_code == 405  # filtered by server config ,return 405
 
+
 @pytest.mark.asyncio
 async def test_head_dict_auth(event_loop):
     resp = await backend.head(
-        url=BASE_URL+"/mock/users/me",
+        url=BASE_URL + "/mock/users/me",
         header={},
-        auth={"username":"client_id","password":"client_secret"},
+        auth={"username": "client_id", "password": "client_secret"},
         timeout=60)
     assert resp.status_code == 405  # filtered by server config ,return 405
 
@@ -111,32 +109,34 @@ async def test_head_dict_auth(event_loop):
 @pytest.mark.asyncio
 async def test_get_dict_auth(event_loop):
     resp = await backend.get(
-        url=BASE_URL+"/mock/users/me",
+        url=BASE_URL + "/mock/users/me",
         data={},
         header={},
-        auth={"username":"client_id","password":"client_secret"},
+        auth={"username": "client_id", "password": "client_secret"},
         timeout=60)
     assert resp.status_code == 200
+
 
 @pytest.mark.asyncio
 async def test_post_dict_auth(event_loop):
     data = {"id": "6", "name": "fox", "description": "fox is F"}
     resp = await backend.post(
-        url=BASE_URL+"/mock/resources",
+        url=BASE_URL + "/mock/resources",
         data=data,
         header={"Content-Type": "application/json"},
-        auth={"username":"client_id","password":"client_secret"},
+        auth={"username": "client_id", "password": "client_secret"},
         timeout=60)
     assert resp.status_code == 201
+
 
 @pytest.mark.asyncio
 async def test_put_dict_auth(event_loop):
     data = {"name": "firefox", "description": "firefox is FF"}
     resp = await backend.put(
-        url=BASE_URL+"/mock/resources/6",
+        url=BASE_URL + "/mock/resources/6",
         data=data,
         header={"Content-Type": "application/json"},
-        auth={"username":"client_id","password":"client_secret"},
+        auth={"username": "client_id", "password": "client_secret"},
         timeout=60)
     assert resp.status_code == 200
 
@@ -145,41 +145,44 @@ async def test_put_dict_auth(event_loop):
 async def test_delete_dict_auth(event_loop):
     try:
         resp = await backend.delete(
-            url=BASE_URL+"/mock/resources",
+            url=BASE_URL + "/mock/resources",
             data=None,
             header={"Content-Type": "application/json"},
-            auth={"username":"client_id","password":"client_secret"},
+            auth={"username": "client_id", "password": "client_secret"},
             timeout=60)
         assert resp.status_code == 200
     except HTTPException as httpex:
         assert httpex.status_code == 405
 
+
 @pytest.mark.asyncio
 async def test_get_basic_auth(event_loop):
     resp = await backend.get(
-        url=BASE_URL+"/mock/users/me",
+        url=BASE_URL + "/mock/users/me",
         data={},
         header={},
         auth=HTTPBasicAuth("client_id", "client_secret"),
         timeout=60)
     assert resp.status_code == 200
 
+
 @pytest.mark.asyncio
 async def test_post_basic_auth(event_loop):
     data = {"id": "6", "name": "fox", "description": "fox is F"}
     resp = await backend.post(
-        url=BASE_URL+"/mock/resources",
+        url=BASE_URL + "/mock/resources",
         data=data,
         header={"Content-Type": "application/json"},
         auth=HTTPBasicAuth("client_id", "client_secret"),
         timeout=60)
     assert resp.status_code == 201
 
+
 @pytest.mark.asyncio
 async def test_put_basic_auth(event_loop):
     data = {"name": "firefox", "description": "firefox is FF"}
     resp = await backend.put(
-        url=BASE_URL+"/mock/resources/6",
+        url=BASE_URL + "/mock/resources/6",
         data=data,
         header={"Content-Type": "application/json"},
         auth=HTTPBasicAuth("client_id", "client_secret"),
@@ -191,11 +194,11 @@ async def test_put_basic_auth(event_loop):
 async def test_delete_basic_auth(event_loop):
     try:
         resp = await backend.delete(
-        url=BASE_URL+"/mock/resources",
-        data=None,
-        header={"Content-Type": "application/json"},
-        auth=HTTPBasicAuth("client_id", "client_secret"),
-        timeout=60)
+            url=BASE_URL + "/mock/resources",
+            data=None,
+            header={"Content-Type": "application/json"},
+            auth=HTTPBasicAuth("client_id", "client_secret"),
+            timeout=60)
         assert resp.status_code == 200
     except HTTPException as httpex:
         assert httpex.status_code == 405
