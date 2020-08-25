@@ -235,11 +235,16 @@ class AsyncHTTPClient(Generic[ModelType]):
         model - Type[ModelType],
         http_backend - Union[str, AsyncHTTPClientBackend]，Backend的实现类，需要继承AsyncHTTPClientBackend接口
             可以使用str方式传入class名称，构造函数会根据str查找并自动解析响应的AsyncHTTPClientBackend
+                同时，也可以使用的backend别名方式完成backend的设置,不区分大小写
+                传入"requests" 或者 "RequestsClientBackend" 会使用 "omi_async_http_client.requests_backend.RequestsClientBackend"
+                传入"aiohttp" 或者 "AioHttpClientBackend" 会使用"omi_async_http_client.aiohttp_backend.AioHttpClientBackend"
+                传入"httpx" 或者 "HttpxClientBackend" 会使用"omi_async_http_client.httpx_backend.HttpxClientBackend"
+                传入"fastapi_test_client"或者 "FastAPITestClientBackend" 会使用"omi_async_http_client.fastapi_testclient_backend.FastAPITestClientBackend"
         resource_endpoint - str, 资源接入服务端的endpoint, 例：http://endpoint/api/v1
         client_id - str, client_id, 用于向资源接入服务端提供客户端ID标识。AsyncHTTPClient默认会将client_id用于HTTPBasicAuth
         client_secret - str, client_secret, 用于向资源接入服务端提供客户端的认证。
         Memo::
-            1.使用str作为http_backend参数时，请使用完整的模块和类路径，当传入的http_backend无法被解析时会抛出异常
+            1.使用str作为http_backend参数时，请提供正确的，当传入的http_backend无法被解析时会抛出异常
         Usage::
         """
         assert http_backend, "http_backend can not be empty"
