@@ -31,6 +31,7 @@ from omi_async_http_client._exceptions import http_exception_decorator
 from omi_async_http_client._status_code import status_codes
 from omi_async_http_client.aiohttp_backend import AioHttpClientBackend
 from omi_async_http_client.requests_backend import RequestsClientBackend
+from omi_async_http_client.httpx_backend import HttpxClientBackend
 from omi_async_http_client.fastapi_testclient_backend import FastAPITestClientBackend
 
 
@@ -97,21 +98,21 @@ def test_builder_err(setup_module):
     except AssertionError as err:
         assert str(err) == 'resource_endpoint can not be empty'
 
-    try:
-        client_for_test = APIClient(model=Resource,
-                                    app=None,
-                                    http_backend="httpx",
-                                    resource_endpoint="http://localhost:8003")
-    except NotImplementedError as err:
-        pass
-
-    try:
-        client_for_test = APIClient(model=Resource,
-                                    app=None,
-                                    http_backend="HttpxClientBackend",
-                                    resource_endpoint="http://localhost:8003")
-    except NotImplementedError as err:
-        pass
+    # try:
+    #     client_for_test = APIClient(model=Resource,
+    #                                 app=None,
+    #                                 http_backend="httpx",
+    #                                 resource_endpoint="http://localhost:8003")
+    # except NotImplementedError as err:
+    #     pass
+    #
+    # try:
+    #     client_for_test = APIClient(model=Resource,
+    #                                 app=None,
+    #                                 http_backend="HttpxClientBackend",
+    #                                 resource_endpoint="http://localhost:8003")
+    # except NotImplementedError as err:
+    #     pass
 
 
 def test_builder(setup_module):
@@ -139,6 +140,19 @@ def test_builder(setup_module):
                                 http_backend="AioHttpClientBackend",
                                 resource_endpoint="http://localhost:8003")
     assert isinstance(client_for_test.http_backend, AioHttpClientBackend)
+
+    client_for_test = APIClient(model=Resource,
+                                app=None,
+                                http_backend="httpx",
+                                resource_endpoint="http://localhost:8003")
+    assert isinstance(client_for_test.http_backend, HttpxClientBackend)
+
+    client_for_test = APIClient(model=Resource,
+                                app=None,
+                                http_backend="HttpxClientBackend",
+                                resource_endpoint="http://localhost:8003")
+    assert isinstance(client_for_test.http_backend, HttpxClientBackend)
+
 
     client_for_test = APIClient(model=Resource,
                                 app=None,

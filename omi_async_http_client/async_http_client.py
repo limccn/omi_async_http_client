@@ -298,8 +298,7 @@ class AsyncHTTPClient(Generic[ModelType]):
             elif http_backend_lower in ["aiohttpclientbackend", "aiohttp"]:
                 http_backend = "omi_async_http_client.aiohttp_backend.AioHttpClientBackend"
             elif http_backend_lower in ["httpxclientbackend", "httpx"]:
-                # http_backend = "omi_async_http_client.httpx_backend.HttpxClientBackend"
-                raise NotImplementedError("HttpxClientBackend is not implemented")
+                http_backend = "omi_async_http_client.httpx_backend.HttpxClientBackend"
             elif http_backend_lower in ["fastapitestclientbackend", "fastapi_test_client"]:
                 http_backend = "omi_async_http_client.fastapi_testclient_backend.FastAPITestClientBackend"
             else:
