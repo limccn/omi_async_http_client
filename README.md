@@ -39,12 +39,12 @@ or use a traditional sync backends [requests](https://github.com/psf/requests)
 
 Backend support list
 
-| Backend Name | Async/Sync | Module | Class | Alias |
-|-|-|-|-|
-|[requests](https://github.com/psf/requests) | Sync | omi_async_http_client.requests_backend | RequestsClientBackend | requests |
-|[aiohttp](https://github.com/aio-libs/aiohttp) | Async | omi_async_http_client.aiohttp_backend | AioHttpClientBackend | aiohttp |
-|[httpx](https://github.com/encode/httpx/) | Async/Sync | omi_async_http_client.httpx_backend | HttpxClientBackend | httpx |
-|[FastAPI](https://github.com/tiangolo/fastapi) | Async/Sync | omi_async_http_client.fastapi_testclient_backend | FastAPITestClientBackend | fastapi_test_client |
+Backend Name | Async/Sync | Module | Class | Alias
+-------------|------------|--------|-------|-------
+[requests](https://github.com/psf/requests) | Sync | omi_async_http_client.requests_backend | RequestsClientBackend | requests
+[aiohttp](https://github.com/aio-libs/aiohttp) | Async | omi_async_http_client.aiohttp_backend | AioHttpClientBackend | aiohttp
+[httpx](https://github.com/encode/httpx/) | Async/Sync | omi_async_http_client.httpx_backend | HttpxClientBackend | httpx
+[FastAPI](https://github.com/tiangolo/fastapi) | Async/Sync | omi_async_http_client.fastapi_testclient_backend | FastAPITestClientBackend | fastapi_test_client
 
 
 3.Apply to your project.
